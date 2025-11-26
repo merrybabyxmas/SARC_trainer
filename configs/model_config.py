@@ -100,7 +100,7 @@ class DefaultModuleConfig(BaseModuleConfig):
         truncation=True,
         max_length=128,
         return_all_scores=False,
-        ckpt_path="/home/yein40/mindcastlib/assets/sarc_KR.pt",
+        ckpt_path="/home/dongwoo38/mindcastlib/assets/sarc_KR.pt",
         r=8,
         alpha=16,
         dropout=0.1,
@@ -119,7 +119,6 @@ class DefaultModuleConfig(BaseModuleConfig):
             "sent_centroid": 0.1
         },
         template="이 문장은 '{subtag}' (키워드: {keyword})에 대한 한국 뉴스 기사 제목이다.",
-        bow_root="/home/yein40/mindcastlib/assets/.precomputed/BagOfWords"
     )
 
 # ------------------------------------------------------------

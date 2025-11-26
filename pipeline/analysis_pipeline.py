@@ -79,10 +79,22 @@ class ModuleCallable:
         # ----- Suicide (SimilaritySearchModel) -----
         elif self.task == "suicide":
             from mindcastlib.src.suicide_utils import SimilaritySearchModel
+
             print(f"[INIT] 💀 Loading suicide SimilaritySearchModel on {self.device}")
-            # BaseConfig → dict로 넘겨서 SimilaritySearchModel에 전달
-            self.model = SimilaritySearchModel(self.cfg.model_dump())
+
+            # 🔥 현재 설치된 mindcastlib 패키지의 루트 자동 탐지
+            import mindcastlib
+            pkg_root = os.path.dirname(mindcastlib.__file__)
+            suicide_cfg_dir = os.path.join(pkg_root, "configs", "suicide")
+
+            # cfg(dict)로 변환 후 suicide_config_root 추가
+            suicide_dict = self.cfg.model_dump()
+            suicide_dict["suicide_config_root"] = suicide_cfg_dir
+
+            # 실행
+            self.model = SimilaritySearchModel(suicide_dict)
             self.pipe = None
+
 
         # ----- HF pipeline 계열 (sentiment/topic/summary/classifier) -----
         else:
@@ -284,7 +296,7 @@ class AnalysisPipeLine:
 # 🧪 Test Entry
 # ============================================================
 if __name__ == "__main__":
-    data_dir = "/home/yein40/data"
+    data_dir = "/home/dongwoo38/data/preprocessed_data/2020/01/01-10/news_comments.json"
     data = prepare_data(data_dir)
 
     runner = AnalysisPipeLine(

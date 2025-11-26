@@ -13,7 +13,7 @@ import json
 # ------------------------------------------------------------
 def load_suicide_monthly_config(
     date_yyyy_mm: str,
-    config_root: str = "/home/yein40/mindcastlib/configs/suicide"
+    config_root: str
 ):
     file_key = date_yyyy_mm.replace("-", "_")
     path = os.path.join(config_root, f"{file_key}.json")
@@ -59,17 +59,19 @@ def precompute_bow_embeddings(
 # 🔍 Suicide Similarity Search Model
 # ------------------------------------------------------------
 class SimilaritySearchModel(nn.Module):
-    """
-    - suicide_model BaseConfig 하나만 입력으로 받는다
-    - BaseConfig에 포함된(allow extra) 필드에서 설정을 가져온다
-    """
-
     def __init__(self, cfg: Dict[str, Any]):
         super().__init__()
 
-        # ------------------------------------------------
-        # 1) 글로벌 suicide 모델 설정(BaseConfig)
-        # ------------------------------------------------
+        # ────────────────────────────────────────────────
+        # 0) suicide_config_root 반드시 최상단에서 정의
+        # ────────────────────────────────────────────────
+        self.config_root = cfg.get("suicide_config_root")
+        if self.config_root is None:
+            raise ValueError("[ERROR] suicide_config_root must be passed in cfg.")
+
+        # ────────────────────────────────────────────────
+        # 1) 글로벌 suicide 모델 설정
+        # ────────────────────────────────────────────────
         self.model_name = cfg["model_name"]
         self.current_date = cfg.get("current_date")
         if self.current_date is None:
@@ -82,7 +84,6 @@ class SimilaritySearchModel(nn.Module):
             "sent_centroid": 0.1
         })
 
-        # 정규화
         s = sum(self.sim_weights.values())
         self.sim_weights = {k: v / s for k, v in self.sim_weights.items()}
 
@@ -90,33 +91,36 @@ class SimilaritySearchModel(nn.Module):
             "template",
             "이 문장은 '{subtag}' (키워드: {keyword})에 대한 한국 뉴스 기사 제목이다."
         )
-        self.bow_root = cfg.get(
-            "bow_root",
-            "./assets/.precomputed/BagOfWords"
-        )
 
-        # ------------------------------------------------
-        # 2) 월별 JSON 설정 로드 (keywords, threshold)
-        # ------------------------------------------------
-        monthly_cfg = load_suicide_monthly_config(self.current_date)
+        # ────────────────────────────────────────────────
+        # 2) bow_root 자동 설정 (절대경로)
+        # ────────────────────────────────────────────────
+        import mindcastlib
+        pkg_root = os.path.dirname(mindcastlib.__file__)
+        default_bow_root = os.path.join(pkg_root, "assets", ".precomputed", "BagOfWords")
+        self.bow_root = cfg.get("bow_root", default_bow_root)
+
+        # ────────────────────────────────────────────────
+        # 3) 월별 JSON 설정
+        # ────────────────────────────────────────────────
+        monthly_cfg = load_suicide_monthly_config(
+            date_yyyy_mm=self.current_date,
+            config_root=self.config_root,
+        )
         self.keyword_config = monthly_cfg["keywords"]
         self.default_threshold = monthly_cfg.get("threshold", 0.45)
         self.subtag_thresholds = monthly_cfg.get("subtag_thresholds", {})
 
-        # ------------------------------------------------
-        # 3) 토크나이저 / 임베딩 모델
-        # ------------------------------------------------
+        # ────────────────────────────────────────────────
+        # 4) 임베딩 모델 로딩
+        # ────────────────────────────────────────────────
         self.tokenizer = AutoTokenizer.from_pretrained(self.model_name)
         self.encoder = AutoModel.from_pretrained(self.model_name)
         self.encoder.eval()
 
-        # BOW path
         file_key = self.current_date.replace("-", "_")
         self.bow_path = os.path.join(self.bow_root, f"BOW_{file_key}.pt")
 
-        # ------------------------------------------------
-        # 4) BOW 로드 or 생성
-        # ------------------------------------------------
         self.bow_emb = self._load_or_precompute()
 
     # --------------------------------------------------------
